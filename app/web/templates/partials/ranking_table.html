@@ -1,0 +1,83 @@
+<div class="table-wrap">
+  <table class="ranking-table">
+    <thead>
+      <tr>
+        <th>{{ t('rank') }}</th>
+        <th>{{ t('repository') }}</th>
+        <th>{{ t('language') }}</th>
+        <th>{{ t('stars_7d') }}</th>
+        <th>{{ t('activity') }}</th>
+        <th>{{ t('release') }}</th>
+        <th>{{ t('score') }}</th>
+        <th>{{ t('change') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        {% set raw = item.score_breakdown.raw_metrics %}
+        <tr class="ranking-row" data-index="{{ loop.index0 }}">
+          <td><span class="rank-badge">{{ item.rank }}</span></td>
+          <td>
+            <a class="repo-link" href="{{ page_href('/repos/' ~ item.repository.owner ~ '/' ~ item.repository.name) }}">{{ item.repository.full_name }}</a>
+            <p>{{ item.repository.description or t('no_description') }}</p>
+            {% if item.warnings %}
+              <div class="warning-row">
+                {% for warning in item.warnings[:2] %}
+                  <span>{{ warning_label(warning) }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </td>
+          <td><span class="language-pill">{{ item.repository.primary_language or '-' }}</span></td>
+          <td>
+            <strong>{{ item.snapshot.stars|compact_number if item.snapshot else '-' }}</strong>
+            <small class="positive">+{{ raw.stars_delta_7d|compact_number }}</small>
+          </td>
+          <td>
+            <strong>{{ item.activity_score }}</strong>
+            <small>{{ raw.commits_7d or 0 }} {{ t('commits') }}</small>
+          </td>
+          <td>
+            {% if raw.days_since_latest_release is not none %}
+              <strong>{{ raw.days_since_latest_release }}{{ t('day_short') }}</strong>
+              <small>{{ t('since_release') }}</small>
+            {% else %}
+              <strong>-</strong>
+              <small>{{ t('unknown') }}</small>
+            {% endif %}
+          </td>
+          <td>
+            <button class="score-button" type="button" data-toggle-breakdown>
+              {{ item.hot_score }}
+            </button>
+          </td>
+          <td>
+            {% if item.rank_change is none %}
+              <span class="change new">{{ t('new') }}</span>
+            {% elif item.rank_change > 0 %}
+              <span class="change up">+{{ item.rank_change }}</span>
+            {% elif item.rank_change < 0 %}
+              <span class="change down">{{ item.rank_change }}</span>
+            {% else %}
+              <span class="change">0</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr class="breakdown-row" hidden>
+          <td></td>
+          <td colspan="7">
+            <div class="breakdown-grid">
+              {% for label, value in item.score_breakdown.components.items() %}
+                <div class="component-row">
+                  <span>{{ component_label(label) }}</span>
+                  <strong>{{ value }}</strong>
+                  <div class="bar"><i style="width: {{ value }}%"></i></div>
+                </div>
+              {% endfor %}
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

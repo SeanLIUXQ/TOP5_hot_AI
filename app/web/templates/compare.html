@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('compare_title') }} - {{ app_name }}{% endblock %}
+{% block page_title %}{{ t('compare_title') }}{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <h2>{{ t('compare_heading') }}</h2>
+        <p>{{ t('compare_intro') }}</p>
+      </div>
+      <form class="compare-form" method="get" action="{{ page_href('/compare') }}">
+        <input name="repos" value="{{ selected_repos }}" placeholder="{{ t('compare_placeholder') }}">
+        <select name="metric">
+          {% for value in ["hot_score", "stars_delta_7d", "activity_score", "community_score"] %}
+            <option value="{{ value }}" {{ 'selected' if value == metric else '' }}>{{ t(value) }}</option>
+          {% endfor %}
+        </select>
+        <button class="button" type="submit">{{ t('compare_button') }}</button>
+      </form>
+    </div>
+    {% if compare_items %}
+      <canvas id="compare-chart" width="1200" height="360"></canvas>
+      <div class="compare-list">
+        {% for item in compare_items %}
+          <div>
+            <strong>{{ item.full_name }}</strong>
+            <span>{{ item.language or '-' }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      <script>window.COMPARE_DATA = {{ compare_json | safe }};</script>
+    {% else %}
+      <div class="empty-state compact">
+        <h2>{{ t('empty_compare_title') }}</h2>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

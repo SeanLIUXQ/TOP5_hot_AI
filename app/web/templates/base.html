@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="{{ html_lang }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    <meta name="description" content="{{ t('meta_description') }}">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
+    <script defer src="{{ url_for('static', path='/app.js') }}"></script>
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="{{ t('main_navigation') }}">
+        <a class="brand" href="{{ page_href('/') }}">
+          <span class="brand-mark">AI</span>
+          <span>
+            <strong>TOP5 Hot AI</strong>
+            <small>{{ t('brand_tagline') }}</small>
+          </span>
+        </a>
+        <nav class="nav-list">
+          <a href="{{ page_href('/') }}" class="{{ 'active' if active_page == 'home' else '' }}">{{ t('latest_ranking') }}</a>
+          <a href="{{ page_href('/weeks') }}" class="{{ 'active' if active_page == 'weeks' else '' }}">{{ t('history') }}</a>
+          <a href="{{ page_href('/compare') }}" class="{{ 'active' if active_page == 'compare' else '' }}">{{ t('compare') }}</a>
+          <a href="{{ page_href('/methodology') }}" class="{{ 'active' if active_page == 'methodology' else '' }}">{{ t('methodology') }}</a>
+          <a href="{{ page_href('/runs') }}" class="{{ 'active' if active_page == 'runs' else '' }}">{{ t('runs') }}</a>
+        </nav>
+        <div class="sidebar-status">
+          <span class="status-dot {{ latest_run.status if latest_run else 'idle' }}"></span>
+          <div>
+            <strong>{{ status_label(latest_run.status) if latest_run else t('status_no_data') }}</strong>
+            <small>{{ latest_run.week_start if latest_run else t('not_collected') }}</small>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">score {{ score_version }}</p>
+            <h1>{% block page_title %}{{ app_name }}{% endblock %}</h1>
+          </div>
+          <div class="topbar-actions">
+            {% if weeks %}
+              <form action="{{ page_href('/weeks') }}" method="get" class="inline-form">
+                <label class="sr-only" for="week_start">{{ t('week_selector') }}</label>
+                <select id="week_start" name="week_start" onchange="this.form.submit()">
+                  {% for week in weeks %}
+                    <option value="{{ week.isoformat() }}">{{ week.isoformat() }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            {% endif %}
+            <a class="button ghost" href="{{ alternate_href }}">{{ t('language_toggle') }}</a>
+            <a class="button ghost" href="/api/v1/rankings/latest">JSON</a>
+          </div>
+        </header>
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+    <script>
+      window.UI_TEXT = {{ ui_text_json | safe }};
+    </script>
+  </body>
+</html>

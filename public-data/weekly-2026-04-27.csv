@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,vllm-project/vllm,84.9,1250,81.8
+2,langchain-ai/langchain,82.3,1020,100.0
+3,huggingface/transformers,73.6,760,90.9
+4,ollama/ollama,73.5,1680,36.4
+5,run-llama/llama_index,64.3,720,72.7
+6,microsoft/autogen,60.3,890,54.5
+7,microsoft/semantic-kernel,54.2,510,63.6
+8,crewAIInc/crewAI,53.2,930,27.3
+9,QwenLM/Qwen,52.6,1180,9.1
+10,microsoft/DeepSpeed,44.9,420,45.5

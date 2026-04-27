@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('runs_title') }} - {{ app_name }}{% endblock %}
+{% block page_title %}{{ t('runs_title') }}{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <h2>{{ t('runs_title') }}</h2>
+        <p>{{ t('runs_intro') }}</p>
+      </div>
+    </div>
+    {% if runs %}
+      <div class="table-wrap">
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>{{ t('week') }}</th>
+              <th>{{ t('status') }}</th>
+              <th>{{ t('candidates') }}</th>
+              <th>{{ t('filtered') }}</th>
+              <th>{{ t('ranked') }}</th>
+              <th>{{ t('started') }}</th>
+              <th>{{ t('error') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for run in runs %}
+              <tr>
+                <td>{{ run.id }}</td>
+                <td>{{ run.week_start }}</td>
+                <td><span class="status-pill {{ run.status }}">{{ status_label(run.status) }}</span></td>
+                <td>{{ run.candidate_count }}</td>
+                <td>{{ run.filtered_count }}</td>
+                <td>{{ run.ranked_count }}</td>
+                <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ run.error_message or '-' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state compact">
+        <h2>{{ t('empty_runs_title') }}</h2>
+        <code>python scripts/collect_weekly.py --mock</code>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

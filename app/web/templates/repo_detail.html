@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}{% if repository %}{{ repository.full_name }}{% else %}{{ t('repo_not_found') }}{% endif %} - {{ app_name }}{% endblock %}
+{% block page_title %}{% if repository %}{{ repository.full_name }}{% else %}{{ t('repo_not_found') }}{% endif %}{% endblock %}
+
+{% block content %}
+  {% if not repository %}
+    <section class="empty-state">
+      <h2>{{ t('repo_missing_title') }}</h2>
+      <p>{{ t('repo_not_found_body') }}</p>
+    </section>
+  {% else %}
+    <section class="repo-hero panel">
+      <div>
+        <div class="detail-kicker">{{ repository.primary_language or t('unknown_language') }}</div>
+        <h2>{{ repository.full_name }}</h2>
+        <p>{{ repository.description or t('no_description') }}</p>
+        <div class="topic-row">
+          {% for topic in topics %}
+            <span>{{ topic }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="repo-score">
+        <strong>{{ latest_ranking.hot_score if latest_ranking else '-' }}</strong>
+        <span>{{ t('hot_score') }}</span>
+        <a class="button ghost" href="{{ repository.html_url }}" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
+    </section>
+
+    <section class="repo-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>{{ t('score_breakdown') }}</h2>
+        </div>
+        {% if score_breakdown.components %}
+          <div class="metric-stack">
+            {% for label, value in score_breakdown.components.items() %}
+              <div class="component-row">
+                <span>{{ component_label(label) }}</span>
+                <strong>{{ value }}</strong>
+                <div class="bar"><i style="width: {{ value }}%"></i></div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <h2>{{ t('latest_snapshot') }}</h2>
+        </div>
+        {% if latest_snapshot %}
+          <dl class="snapshot-list">
+            <div><dt>{{ t('stars') }}</dt><dd>{{ latest_snapshot.stars|compact_number }} <span>+{{ latest_snapshot.stars_delta_7d|compact_number }}</span></dd></div>
+            <div><dt>{{ t('forks') }}</dt><dd>{{ latest_snapshot.forks|compact_number }} <span>+{{ latest_snapshot.forks_delta_7d|compact_number }}</span></dd></div>
+            <div><dt>{{ t('commits_title') }}</dt><dd>{{ latest_snapshot.commit_count_7d or 0 }}</dd></div>
+            <div><dt>{{ t('pr_merged') }}</dt><dd>{{ latest_snapshot.pr_merged_7d or 0 }}</dd></div>
+            <div><dt>{{ t('data') }}</dt><dd>{{ latest_snapshot.data_quality_level }}</dd></div>
+          </dl>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>{{ t('trend_title') }}</h2>
+      </div>
+      <div class="chart-grid">
+        <div>
+          <h3>{{ t('hot_score_title') }}</h3>
+          <canvas class="trend-chart" data-series="hot_score" width="640" height="220"></canvas>
+        </div>
+        <div>
+          <h3>{{ t('star_delta') }}</h3>
+          <canvas class="trend-chart" data-series="stars_delta" width="640" height="220"></canvas>
+        </div>
+      </div>
+    </section>
+    <script>window.REPO_CHART_DATA = {{ chart_data_json | safe }};</script>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('methodology_title') }} - {{ app_name }}{% endblock %}
+{% block page_title %}{{ t('methodology_title') }}{% endblock %}
+
+{% block content %}
+  <section class="method-grid">
+    <article class="panel">
+      <h2>{{ t('candidate_repositories') }}</h2>
+      <p>{{ t('candidate_body') }}</p>
+    </article>
+    <article class="panel">
+      <h2>{{ t('overall_score') }}</h2>
+      <pre>hot_score =
+0.35 attention
++ 0.25 activity
++ 0.15 community
++ 0.10 freshness
++ 0.10 health
++ 0.05 maturity</pre>
+    </article>
+    <article class="panel">
+      <h2>{{ t('objectivity') }}</h2>
+      <p>{{ t('objectivity_body') }}</p>
+    </article>
+    <article class="panel">
+      <h2>{{ t('data_quality') }}</h2>
+      <p>{{ t('data_quality_body') }}</p>
+    </article>
+  </section>
+{% endblock %}

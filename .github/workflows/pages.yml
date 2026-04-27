@@ -1,0 +1,61 @@
+name: Deploy GitHub Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      mock:
+        description: "Use built-in mock data instead of GitHub API"
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: "15 1 * * 1"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Test
+        run: pytest
+      - name: Build static site
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATABASE_URL: sqlite:///./data/radar.db
+          USE_MOCK_WHEN_NO_TOKEN: ${{ inputs.mock && 'true' || 'false' }}
+        run: |
+          MOCK_FLAG=""
+          if [ "${{ inputs.mock }}" = "true" ]; then
+            MOCK_FLAG="--mock"
+          fi
+          python scripts/build_static_site.py --collect $MOCK_FLAG --limit 120 --output site --archive-dir public-data
+      - name: Persist public data archive
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public-data
+          git diff --cached --quiet || git commit -m "chore(data): update weekly radar archive"
+          git push
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('history_page_title') }} - {{ app_name }}{% endblock %}
+{% block page_title %}{{ t('history_title') }}{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <h2>{{ selected_week.isoformat() if selected_week else t('no_week_selected') }}</h2>
+        <p>{{ t('history_intro') }}</p>
+      </div>
+      {% if selected_week %}
+        <a class="button" href="/api/v1/rankings/{{ selected_week.isoformat() }}/export?format=json">{{ t('json_export') }}</a>
+      {% endif %}
+    </div>
+    {% if items %}
+      {% include "partials/ranking_table.html" %}
+      <script>window.RANKING_ITEMS = {{ ranking_items_json | safe }};</script>
+    {% else %}
+      <div class="empty-state compact">
+        <h2>{{ t('empty_history_title') }}</h2>
+        <code>python scripts/collect_weekly.py --mock</code>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}
