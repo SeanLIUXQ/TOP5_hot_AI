@@ -133,28 +133,53 @@
     if (min === max) max = min + 1;
     ctx.clearRect(0, 0, width, height);
     ctx.strokeStyle = "#d9ded8";
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(pad, height - pad);
     ctx.lineTo(width - pad, height - pad);
     ctx.moveTo(pad, pad);
     ctx.lineTo(pad, height - pad);
     ctx.stroke();
+
+    ctx.fillStyle = "#667085";
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.fillText(String(Math.round(max)), 8, pad + 4);
+    ctx.fillText(String(Math.round(min)), 8, height - pad + 4);
+
+    function projectPoint(point, index, count) {
+      var x = count === 1 ? width / 2 : pad + (index * (width - pad * 2)) / Math.max(count - 1, 1);
+      var y = height - pad - ((Number(point.value || 0) - min) / (max - min)) * (height - pad * 2);
+      return { x: x, y: y };
+    }
+
     window.COMPARE_DATA.forEach(function (item, seriesIndex) {
       var points = item.points || [];
       if (!points.length) return;
-      ctx.strokeStyle = colors[seriesIndex % colors.length];
+      var color = colors[seriesIndex % colors.length];
+      ctx.strokeStyle = color;
       ctx.lineWidth = 3;
       ctx.beginPath();
       points.forEach(function (point, index) {
-        var x = pad + (index * (width - pad * 2)) / Math.max(points.length - 1, 1);
-        var y =
-          height -
-          pad -
-          ((Number(point.value || 0) - min) / (max - min)) * (height - pad * 2);
-        if (index === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+        var projected = projectPoint(point, index, points.length);
+        if (index === 0) ctx.moveTo(projected.x, projected.y);
+        else ctx.lineTo(projected.x, projected.y);
       });
       ctx.stroke();
+
+      points.forEach(function (point, index) {
+        var projected = projectPoint(point, index, points.length);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(projected.x, projected.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#fffdfa";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = "#1f2933";
+        ctx.font = "12px system-ui, sans-serif";
+        ctx.fillText(String(Math.round(Number(point.value || 0) * 10) / 10), projected.x + 9, projected.y - 8);
+      });
     });
   }
 
