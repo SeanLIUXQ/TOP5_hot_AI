@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,NousResearch/hermes-agent,99.4,0,98.5
+2,affaan-m/everything-claude-code,96.8,0,96.9
+3,sipyourdrink-ltd/bernstein,96.0,0,100.0
+4,christopherkarani/Wax,95.5,0,95.4
+5,huggingface/transformers,94.3,0,78.5
+6,langgenius/dify,93.5,0,86.2
+7,code-yeongyu/senpi,92.8,0,90.8
+8,tenstorrent/tt-metal,92.8,0,81.5
+9,decolua/9router,91.2,0,70.8
+10,skypilot-org/skypilot,90.1,0,70.8
