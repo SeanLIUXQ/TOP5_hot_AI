@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,vllm-project/vllm,97.2,0,92.6
+2,ohdearquant/lionagi,96.2,0,100.0
+3,camel-ai/camel,94.1,0,86.8
+4,NousResearch/hermes-agent,94.0,0,98.5
+5,mlflow/mlflow,92.9,0,85.3
+6,1jehuang/jcode,92.6,0,97.1
+7,nexi-lab/nexus,92.5,0,94.1
+8,openagents-org/openagents,92.3,0,79.4
+9,KudoAI/chatgpt.js,91.9,0,88.2
+10,spiceai/spiceai,91.0,0,73.5
