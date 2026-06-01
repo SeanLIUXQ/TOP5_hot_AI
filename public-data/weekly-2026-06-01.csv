@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,promptfoo/promptfoo,98.0,0,98.5
+2,milvus-io/milvus,97.7,0,94.0
+3,langchain-ai/langgraphjs,95.4,0,91.0
+4,HKUDS/LightRAG,94.9,0,83.6
+5,mlflow/mlflow,94.4,0,94.0
+6,NousResearch/hermes-agent,94.1,0,97.0
+7,mm7894215/TokenTracker,93.8,0,89.6
+8,sgl-project/sglang,92.9,0,95.5
+9,NPC-Worldwide/incognide,91.5,0,83.6
+10,openvinotoolkit/openvino,91.4,0,73.1
