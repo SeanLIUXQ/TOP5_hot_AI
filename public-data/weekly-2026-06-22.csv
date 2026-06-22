@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,sgl-project/sglang,98.5,0,98.4
+2,BlazeUp-AI/Observal,95.7,0,93.8
+3,langgenius/dify,95.5,0,100.0
+4,1Panel-dev/MaxKB,95.3,0,87.5
+5,unslothai/unsloth,95.0,0,82.8
+6,vercel/ai,93.7,0,89.1
+7,apache/texera,93.6,0,92.2
+8,vllm-project/vllm,93.3,0,95.3
+9,agentscope-ai/agentscope,93.3,0,78.1
+10,simstudioai/sim,92.5,0,73.4
