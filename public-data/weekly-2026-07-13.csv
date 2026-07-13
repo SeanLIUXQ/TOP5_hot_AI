@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,vllm-project/vllm,98.6,0,96.0
+2,langgenius/dify,96.8,0,98.7
+3,ohdearquant/lionagi,96.3,0,100.0
+4,mm7894215/TokenTracker,94.9,0,90.7
+5,xorbitsai/inference,94.6,0,86.7
+6,unslothai/unsloth,93.1,0,76.0
+7,HKUDS/Vibe-Trading,92.5,0,94.7
+8,matrixhub-ai/matrixhub,92.3,0,88.0
+9,yonatangross/orchestkit,92.0,0,85.3
+10,Runfusion/Fusion,91.7,0,97.3
