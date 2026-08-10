@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,sgl-project/sglang,97.6,0,94.7
+2,langgenius/dify,96.6,0,100.0
+3,QwenLM/qwen-code,95.8,0,89.3
+4,Runfusion/Fusion,95.7,0,96.0
+5,apache/texera,95.5,0,98.7
+6,Gitlawb/zero,95.3,0,93.3
+7,openonion/connectonion,95.0,0,92.0
+8,bojieli/ai-agent-book,94.5,0,86.7
+9,spiceai/spiceai,94.3,0,88.0
+10,milvus-io/milvus,91.8,0,72.0
