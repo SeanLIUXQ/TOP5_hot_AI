@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,NousResearch/hermes-agent,99.4,0,98.6
+2,unslothai/unsloth,98.4,0,95.7
+3,sgl-project/sglang,97.1,0,94.2
+4,apache/maka,95.0,0,89.9
+5,mastra-ai/mastra,92.6,0,87.0
+6,AMD-AGI/Hyperloom,91.6,0,92.8
+7,kvcache-ai/Mooncake,91.3,0,78.3
+8,deepspeedai/DeepSpeed,90.9,0,69.6
+9,bytedance/deer-flow,90.4,0,82.6
+10,agentscope-ai/agentscope,90.1,0,84.1
