@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,thedotmack/claude-mem,99.7,0,100.0
+2,unslothai/unsloth,98.6,0,97.1
+3,ShenSeanChen/waku-agent,93.9,0,92.9
+4,makecindy/cindy,93.9,0,87.1
+5,semantica-agi/semantica,93.8,0,85.7
+6,smithersai/smithers,92.7,0,98.6
+7,omnigent-ai/omnigent,92.7,0,80.0
+8,huggingface/transformers,92.5,0,71.4
+9,zhayujie/CowAgent,92.2,0,91.4
+10,promptfoo/promptfoo,91.7,0,95.7
