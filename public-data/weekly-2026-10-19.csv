@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,sgl-project/sglang,98.7,0,97.3
+2,vllm-project/vllm,98.7,0,95.9
+3,tinyhumansai/openhuman,98.4,0,98.6
+4,kirodotdev/KiroCrew,97.7,0,100.0
+5,QwenLM/qwen-code,97.2,0,93.2
+6,IncarnaMind/IncarnaMind,95.5,0,94.6
+7,thedotmack/claude-mem,94.1,0,78.4
+8,huggingface/transformers,94.0,0,77.0
+9,smg-project/smg,93.2,0,86.5
+10,wanshuiyin/Auto-claude-code-research-in-sleep,93.0,0,82.4
