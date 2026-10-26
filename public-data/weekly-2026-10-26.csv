@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,morluto/rea,95.4,0,81.8
+2,langgenius/dify,95.2,0,92.4
+3,NousResearch/hermes-agent,94.8,0,100.0
+4,Tencent/WeKnora,94.7,0,93.9
+5,vllm-project/vllm-ascend,94.3,0,86.4
+6,kirodotdev/KiroCrew,92.3,0,95.5
+7,avibe-bot/avibe,92.0,0,78.8
+8,crmne/ruby_llm,91.7,0,77.3
+9,BitterSecurity/Decepticon,91.5,0,90.9
+10,QwenLM/qwen-code,91.4,0,87.9
