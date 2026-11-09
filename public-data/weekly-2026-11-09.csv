@@ -1,0 +1,11 @@
+rank,full_name,hot_score,stars_delta_7d,activity_score
+1,sgl-project/sglang,98.9,0,100.0
+2,unslothai/unsloth,98.2,0,95.5
+3,omnigent-ai/omnigent,97.5,0,97.0
+4,openai/openai-agents-python,97.1,0,92.5
+5,agentscope-ai/agentscope,95.1,0,86.6
+6,NousResearch/hermes-agent,94.4,0,98.5
+7,HKUDS/LightRAG,93.2,0,91.0
+8,esengine/DeepSeek-Reasonix,93.1,0,76.1
+9,anywhere-labs/Agents-Anywhere,91.8,0,80.6
+10,spiceai/spiceai,91.7,0,77.6
