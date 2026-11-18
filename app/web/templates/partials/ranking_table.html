@@ -1,83 +1,76 @@
-<div class="table-wrap">
-  <table class="ranking-table">
+{% set options = languages if filter_path == '/' and languages else items|map(attribute='repository.primary_language')|select|unique|sort %}
+<div class="ranking" data-ranking>
+  <div class="rank-tools">
+    {% if options %}
+      <form class="filter-form" method="get" action="{{ page_href(filter_path) }}" data-filter-form data-initial="{{ selected_language|default('', true) }}">
+        <label for="language">{{ t('language') }}</label>
+        <select id="language" name="language" aria-controls="rankings">
+          <option value="">{{ t('all_languages') }}</option>
+          {% for language in options %}<option value="{{ language }}"{% if language == selected_language %} selected{% endif %}>{{ language }}</option>{% endfor %}
+        </select>
+        <button class="button small-button" data-apply type="submit">{{ tr('Apply', '应用') }}</button>
+      </form>
+    {% endif %}
+    <span class="results-count" role="status" aria-live="polite" aria-atomic="true"><span data-match-count>{{ items|length }}</span> {{ tr('shown', '项结果') }}</span>
+    {% if export_date %}<a class="export-link" href="/api/v1/editions/{{ export_date }}"><span aria-hidden="true">↓</span> {{ tr('Edition JSON', '本期 JSON') }}</a>{% endif %}
+  </div>
+  <table id="rankings" class="ranking-table"{% if not items %} hidden{% endif %}>
+    <caption class="sr-only">{{ tr('Weekly TOP10 rankings', '每周 TOP10 榜单') }}{% if export_date %} · {{ export_date }}{% endif %}</caption>
     <thead>
       <tr>
-        <th>{{ t('rank') }}</th>
-        <th>{{ t('repository') }}</th>
-        <th>{{ t('language') }}</th>
-        <th>{{ t('stars_7d') }}</th>
-        <th>{{ t('activity') }}</th>
-        <th>{{ t('release') }}</th>
-        <th>{{ t('score') }}</th>
-        <th>{{ t('change') }}</th>
+        <th scope="col" class="rank-cell">{{ t('rank') }}</th>
+        <th scope="col">{{ t('repository') }}</th>
+        <th scope="col" class="stat-cell">{{ tr('Stars · 7d', 'Star · 7 天') }}</th>
+        <th scope="col" class="stat-cell">{{ t('activity') }}</th>
+        <th scope="col" class="score-cell">{{ t('hot_score_title') }}</th>
       </tr>
     </thead>
     <tbody>
       {% for item in items %}
+        {% set repo = item.repository %}
         {% set raw = item.score_breakdown.raw_metrics %}
-        <tr class="ranking-row" data-index="{{ loop.index0 }}">
-          <td><span class="rank-badge">{{ item.rank }}</span></td>
-          <td>
-            <a class="repo-link" href="{{ page_href('/repos/' ~ item.repository.owner ~ '/' ~ item.repository.name) }}">{{ item.repository.full_name }}</a>
-            <p>{{ item.repository.description or t('no_description') }}</p>
-            {% if item.warnings %}
-              <div class="warning-row">
-                {% for warning in item.warnings[:2] %}
-                  <span>{{ warning_label(warning) }}</span>
-                {% endfor %}
-              </div>
-            {% endif %}
-          </td>
-          <td><span class="language-pill">{{ item.repository.primary_language or '-' }}</span></td>
-          <td>
-            <strong>{{ item.snapshot.stars|compact_number if item.snapshot else '-' }}</strong>
-            <small class="positive">+{{ raw.stars_delta_7d|compact_number }}</small>
-          </td>
-          <td>
-            <strong>{{ item.activity_score }}</strong>
-            <small>{{ raw.commits_7d or 0 }} {{ t('commits') }}</small>
-          </td>
-          <td>
-            {% if raw.days_since_latest_release is not none %}
-              <strong>{{ raw.days_since_latest_release }}{{ t('day_short') }}</strong>
-              <small>{{ t('since_release') }}</small>
-            {% else %}
-              <strong>-</strong>
-              <small>{{ t('unknown') }}</small>
-            {% endif %}
-          </td>
-          <td>
-            <button class="score-button" type="button" data-toggle-breakdown>
-              {{ item.hot_score }}
-            </button>
-          </td>
-          <td>
-            {% if item.rank_change is none %}
-              <span class="change new">{{ t('new') }}</span>
-            {% elif item.rank_change > 0 %}
-              <span class="change up">+{{ item.rank_change }}</span>
-            {% elif item.rank_change < 0 %}
-              <span class="change down">{{ item.rank_change }}</span>
-            {% else %}
-              <span class="change">0</span>
-            {% endif %}
-          </td>
-        </tr>
-        <tr class="breakdown-row" hidden>
-          <td></td>
-          <td colspan="7">
-            <div class="breakdown-grid">
-              {% for label, value in item.score_breakdown.components.items() %}
-                <div class="component-row">
-                  <span>{{ component_label(label) }}</span>
-                  <strong>{{ value }}</strong>
-                  <div class="bar"><i style="width: {{ value }}%"></i></div>
+        {% set delta = raw.stars_delta_7d %}
+        <tr data-language="{{ repo.primary_language or '' }}">
+          <th scope="row" class="rank-cell">
+            <span class="rank-number">{{ '%02d'|format(item.rank) }}</span>
+            <span class="rank-change"><span class="sr-only">{{ t('change') }} </span>
+              {%- if item.rank_change is number %}{{ '+' if item.rank_change > 0 else '' }}{{ item.rank_change }}
+              {%- elif item.is_new_entry %}{{ t('new') }}{% else %}—{% endif -%}
+            </span>
+          </th>
+          <td class="project-cell">
+            <a class="repo-link" href="{{ page_href('/repos/' ~ repo.owner ~ '/' ~ repo.name) }}">{{ project_name(repo.full_name) }}</a>
+            {% if repo.description %}<p class="repo-description">{{ repo.description }}</p>{% endif %}
+            <div class="row-meta">
+              {% if repo.primary_language %}<span class="language-label">{{ repo.primary_language }}</span>{% endif %}
+              <details class="row-details">
+                <summary>{{ tr('Score details', '得分详情') }}<span class="sr-only"> · {{ repo.full_name }}</span></summary>
+                <div class="score-details">
+                  <dl class="raw-metrics">
+                    <div><dt>{{ t('stars') }}</dt><dd>{{ item.snapshot.stars|compact_number if item.snapshot and item.snapshot.stars is number else '—' }}</dd></div>
+                    <div><dt>{{ t('stars_delta_7d') }}</dt><dd>{{ signed(delta) }}</dd></div>
+                    <div><dt>{{ t('activity') }}</dt><dd>{{ item.activity_score if item.activity_score is number else '—' }}</dd></div>
+                    <div><dt>{{ tr('Commits · 7d', '提交 · 7 天') }}</dt><dd>{{ raw.commits_7d if raw.commits_7d is number else '—' }}</dd></div>
+                    <div><dt>{{ tr('Last release', '最近发布') }}</dt><dd>{{ raw.days_since_latest_release ~ tr('d ago', ' 天前') if raw.days_since_latest_release is number else t('unknown') }}</dd></div>
+                  </dl>
+                  {% if item.score_breakdown.components %}
+                    <dl class="components">
+                      {% for key, value in item.score_breakdown.components.items() %}
+                        <div><dt>{{ component_label(key) }}</dt><dd>{{ value }}{% if value is number %}<meter min="0" max="100" value="{{ value }}" aria-hidden="true"></meter>{% endif %}</dd></div>
+                      {% endfor %}
+                    </dl>
+                  {% endif %}
+                  {% if item.warnings %}<ul class="warning-list">{% for warning in item.warnings %}<li>{{ warning_label(warning) }}</li>{% endfor %}</ul>{% endif %}
                 </div>
-              {% endfor %}
+              </details>
             </div>
           </td>
+          <td class="stat-cell"><strong>{{ signed(delta) }}</strong><small>{{ item.snapshot.stars|compact_number if item.snapshot and item.snapshot.stars is number else '—' }} {{ tr('total', '总计') }}</small></td>
+          <td class="stat-cell"><strong>{{ item.activity_score if item.activity_score is number else '—' }}</strong><small>{{ raw.commits_7d if raw.commits_7d is number else '—' }} {{ t('commits') }}</small></td>
+          <td class="score-cell"><strong>{{ item.hot_score if item.hot_score is number else '—' }}</strong></td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
+  <p class="inline-empty" data-no-matches{% if items %} hidden{% endif %}>{{ tr('No projects to show for this selection.', '当前筛选条件下没有项目。') }} <a href="{{ page_href(filter_path) }}">{{ t('all_languages') }}</a></p>
 </div>

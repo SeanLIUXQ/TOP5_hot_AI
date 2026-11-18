@@ -1,18 +1,34 @@
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes_admin import router as admin_router
+from app.api.routes_editions import router as editions_router
 from app.api.routes_rankings import router as rankings_router
 from app.api.routes_repos import router as repos_router
 from app.core.config import get_settings
-from app.db.session import init_db
+from app.db.archive import restore_history
+from app.db.session import SessionLocal, init_db
 from app.web.routes import router as web_router
 
 
-def create_app() -> FastAPI:
+def create_app(archive_dir: Path | None = None, restore_on_startup: bool = True) -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title=settings.app_name, version="0.1.0")
+    public_dir = archive_dir if archive_dir is not None else settings.archive_dir
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        if restore_on_startup:
+            init_db()
+            with SessionLocal() as db:
+                restore_history(db, settings.state_dir, public_dir)
+        yield
+
+    app = FastAPI(title=settings.app_name, version="0.2.0", lifespan=lifespan)
+    app.state.archive_dir = public_dir
     app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 
     @app.exception_handler(HTTPException)
@@ -24,10 +40,6 @@ def create_app() -> FastAPI:
             content={"error": {"code": "http_error", "message": str(exc.detail), "details": {}}},
         )
 
-    @app.on_event("startup")
-    def on_startup() -> None:
-        init_db()
-
     @app.get("/healthz", tags=["system"])
     def healthz() -> dict[str, str]:
         return {"status": "ok", "app": settings.app_name, "env": settings.env}
@@ -36,6 +48,7 @@ def create_app() -> FastAPI:
     def favicon() -> Response:
         return Response(status_code=204)
 
+    app.include_router(editions_router)
     app.include_router(rankings_router)
     app.include_router(repos_router)
     app.include_router(admin_router)

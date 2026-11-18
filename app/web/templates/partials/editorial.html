@@ -1,0 +1,69 @@
+{# Presentation helpers shared by the two language editions. #}
+{% macro tr(en, zh) -%}{{ zh if lang == 'zh' else en }}{%- endmacro %}
+
+{% macro date_label(kind) -%}
+  {{ tr('Week of', '周起始日') if kind == 'weekly' else tr('Edition', '刊期') }}
+{%- endmacro %}
+
+{% macro category_name(key) -%}
+  {{ {'offload': tr('Offloading', '内存卸载'), 'runtime': tr('Runtimes', '运行时'),
+      'quantization': tr('Quantization', '量化'), 'acceleration': tr('Acceleration', '计算加速'),
+      'serving': tr('Model serving', '推理服务')}.get(key, key) }}
+{%- endmacro %}
+
+{% macro project_name(full_name) -%}
+  {%- if '/' in full_name -%}
+    {%- set owner, name = full_name.split('/', 1) -%}
+    <span class="owner">{{ owner }}/</span><wbr>{{ name }}
+  {%- else -%}{{ full_name }}{%- endif -%}
+{%- endmacro %}
+
+{% macro signed(value) -%}
+  {%- if value is number -%}{{ '+' if value > 0 else '' }}{{ value|compact_number }}{%- else -%}—{%- endif -%}
+{%- endmacro %}
+
+{% macro external_link(url, label) -%}
+  {%- if url and url.startswith('https://') -%}<a href="{{ url }}">{{ label }}</a>{%- else -%}{{ label }}{%- endif -%}
+{%- endmacro %}
+
+{% macro section_nav(dates, current, route, kind='daily') %}
+  {% if dates or current %}
+    <nav class="edition-nav" aria-label="{{ tr('Edition navigation', '刊期导航') }}">
+      <div class="edition-line">
+        {% if current %}
+          <span class="issue-date"><span>{{ date_label(kind) }}</span> <time datetime="{{ current }}">{{ current }}</time></span>
+        {% endif %}
+        {% if current in dates %}
+          {% set i = dates.index(current) %}
+          <div class="adjacent-editions">
+            {% if i < dates|length - 1 %}
+              <a href="{{ page_href(route ~ '/' ~ dates[i + 1]) }}" rel="prev"><span aria-hidden="true">←</span> {{ tr('Older', '上一期') }}</a>
+            {% endif %}
+            {% if i > 0 %}
+              <a href="{{ page_href(route ~ '/' ~ dates[i - 1]) }}" rel="next">{{ tr('Newer', '下一期') }} <span aria-hidden="true">→</span></a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+      {% if dates %}
+        {% set months = {} %}
+        {% for day in dates %}{% set _ = months.setdefault(day[:7], []).append(day) %}{% endfor %}
+        <details class="date-index">
+          <summary>{{ tr('Browse dates', '浏览刊期') }} <span class="item-count">{{ dates|length }}</span></summary>
+          <div class="date-months">
+            {% for month, days in months.items() %}
+              <details class="date-month"{% if current in days or (not current and loop.first) %} open{% endif %}>
+                <summary>{{ month }} <span class="item-count">{{ days|length }}</span></summary>
+                <ul>
+                  {% for day in days %}
+                    <li><a href="{{ page_href(route ~ '/' ~ day) }}"{% if day == current %} aria-current="date"{% endif %}><time datetime="{{ day }}">{{ day }}</time></a></li>
+                  {% endfor %}
+                </ul>
+              </details>
+            {% endfor %}
+          </div>
+        </details>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% endmacro %}

@@ -8,11 +8,11 @@ WORKDIR /app
 RUN adduser --disabled-password --gecos "" appuser
 
 COPY pyproject.toml README.md ./
-RUN pip install --no-cache-dir -e .
-
 COPY app ./app
+RUN pip install --no-cache-dir -e .
 COPY scripts ./scripts
-COPY docs ./docs
+COPY public-data ./public-data
+COPY collection-state ./collection-state
 COPY .env.example ./.env.example
 
 RUN mkdir -p /app/data /app/output/reports && chown -R appuser:appuser /app

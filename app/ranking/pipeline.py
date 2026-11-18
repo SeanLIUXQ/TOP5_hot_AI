@@ -5,12 +5,19 @@ from datetime import date
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.dates import previous_week_start, utc_now
-from app.core.json import dumps
+from app.core.json import dumps, loads
 from app.db.models import RepoSnapshot, WeeklyRanking
 from app.ranking.scoring import score_snapshots
 
 
-def generate_weekly_ranking(db: Session, week_start: date, score_version: str) -> list[WeeklyRanking]:
+def generate_weekly_ranking(
+    db: Session,
+    week_start: date,
+    score_version: str,
+    *,
+    as_of: date | None = None,
+    commit: bool = True,
+) -> list[WeeklyRanking]:
     snapshots = (
         db.query(RepoSnapshot)
         .options(joinedload(RepoSnapshot.repository))
@@ -28,16 +35,32 @@ def generate_weekly_ranking(db: Session, week_start: date, score_version: str) -
         .all()
     )
     previous_rank_by_repo = {ranking.repository_id: ranking.rank for ranking in previous_rankings}
-    previous_weeks_by_repo = {ranking.repository_id: ranking.weeks_on_chart for ranking in previous_rankings}
+    previous_weeks_by_repo = {
+        ranking.repository_id: ranking.weeks_on_chart for ranking in previous_rankings
+    }
 
-    scored = score_snapshots(snapshots, score_version=score_version, as_of=week_start)
+    scored = score_snapshots(snapshots, score_version=score_version, as_of=as_of or week_start)
     db.query(WeeklyRanking).filter(WeeklyRanking.week_start == week_start).filter(
         WeeklyRanking.score_version == score_version
-    ).delete(synchronize_session=False)
+    ).delete(synchronize_session="fetch")
     generated_at = utc_now()
     rankings: list[WeeklyRanking] = []
     for rank, item in enumerate(scored, start=1):
         snapshot = item.snapshot
+        quality = loads(snapshot.data_quality_json, {})
+        baseline = quality.get("growth_baseline")
+        if baseline:
+            item.score_breakdown["growth_baseline"] = baseline
+            if baseline["status"] != "observed":
+                item.score_breakdown["warnings"].append(f"growth_baseline_{baseline['status']}")
+                item.score_breakdown["estimated_fields"].extend(
+                    [
+                        "stars_delta_7d",
+                        "stars_growth_rate_7d",
+                        "forks_delta_7d",
+                        "watchers_delta_7d",
+                    ]
+                )
         previous_rank = previous_rank_by_repo.get(snapshot.repository_id)
         weeks_on_chart = previous_weeks_by_repo.get(snapshot.repository_id, 0) + 1
         ranking = WeeklyRanking(
@@ -62,8 +85,8 @@ def generate_weekly_ranking(db: Session, week_start: date, score_version: str) -
         )
         db.add(ranking)
         rankings.append(ranking)
-    db.commit()
-    for ranking in rankings:
-        db.refresh(ranking)
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return rankings
-

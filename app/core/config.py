@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     app_name: str = "TOP5 Hot AI Project"
     env: str = "development"
     database_url: str = "sqlite:///./data/radar.db"
+    archive_dir: Path = Path("public-data")
+    state_dir: Path = Path("collection-state")
     github_token: str | None = None
     github_rest_endpoint: str = "https://api.github.com"
     admin_token: str | None = "change-me"

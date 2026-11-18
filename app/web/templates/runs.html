@@ -1,52 +1,26 @@
-{% extends "base.html" %}
-
-{% block title %}{{ t('runs_title') }} - {{ app_name }}{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{{ t('runs_title') }} · TOP5 Hot AI{% endblock %}
 {% block page_title %}{{ t('runs_title') }}{% endblock %}
-
+{% block intro %}<p>{{ t('runs_intro') }}</p>{% endblock %}
 {% block content %}
-  <section class="panel">
-    <div class="panel-header">
-      <div>
-        <h2>{{ t('runs_title') }}</h2>
-        <p>{{ t('runs_intro') }}</p>
-      </div>
-    </div>
-    {% if runs %}
-      <div class="table-wrap">
-        <table class="ranking-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>{{ t('week') }}</th>
-              <th>{{ t('status') }}</th>
-              <th>{{ t('candidates') }}</th>
-              <th>{{ t('filtered') }}</th>
-              <th>{{ t('ranked') }}</th>
-              <th>{{ t('started') }}</th>
-              <th>{{ t('error') }}</th>
+  {% if runs %}
+    <div class="scroll-table" role="region" aria-label="{{ t('runs_title') }}" tabindex="0">
+      <table class="data-table">
+        <caption class="sr-only">{{ t('runs_title') }}</caption>
+        <thead><tr>
+          {% for label in ['ID', t('week'), t('status'), t('candidates'), t('filtered'), t('ranked'), t('started'), t('error')] %}<th scope="col">{{ label }}</th>{% endfor %}
+        </tr></thead>
+        <tbody>
+          {% for run in runs %}
+            <tr><th scope="row">{{ run.id }}</th><td>{{ run.week_start }}</td><td>{{ status_label(run.status) }}</td>
+              <td>{{ run.candidate_count }}</td><td>{{ run.filtered_count }}</td><td>{{ run.ranked_count }}</td>
+              <td><time datetime="{{ run.started_at.isoformat() }}">{{ run.started_at.strftime('%Y-%m-%d %H:%M') }}</time></td><td>{{ run.error_message or '—' }}</td>
             </tr>
-          </thead>
-          <tbody>
-            {% for run in runs %}
-              <tr>
-                <td>{{ run.id }}</td>
-                <td>{{ run.week_start }}</td>
-                <td><span class="status-pill {{ run.status }}">{{ status_label(run.status) }}</span></td>
-                <td>{{ run.candidate_count }}</td>
-                <td>{{ run.filtered_count }}</td>
-                <td>{{ run.ranked_count }}</td>
-                <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td>{{ run.error_message or '-' }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <div class="empty-state compact">
-        <h2>{{ t('empty_runs_title') }}</h2>
-        <code>python scripts/collect_weekly.py --mock</code>
-      </div>
-    {% endif %}
-  </section>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <section class="empty-state"><h2>{{ t('empty_runs_title') }}</h2></section>
+  {% endif %}
 {% endblock %}

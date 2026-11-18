@@ -8,23 +8,17 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from app.api.errors import api_error
+from app.api.routes_editions import get_archive
 from app.api.serializers import ranking_item
 from app.core.config import get_settings
-from app.core.json import dumps, loads
+from app.core.json import loads
 from app.db.models import CollectionRun, Repository, RepoSnapshot, WeeklyRanking
 from app.db.session import get_db
+from app.editions import EditionArchive
 
 router = APIRouter(tags=["web"])
 templates = Jinja2Templates(directory="app/web/templates")
-
-COMPONENT_KEYS = [
-    "attention_score",
-    "activity_score",
-    "community_score",
-    "freshness_score",
-    "health_score",
-    "maturity_confidence",
-]
 
 TRANSLATIONS = {
     "en": {
@@ -102,6 +96,9 @@ TRANSLATIONS = {
         "overall_score": "Overall score",
         "objectivity": "Objectivity",
         "objectivity_body": "Each component keeps raw metrics, normalized scores, warnings, and estimated fields. Score versions are saved with rankings so future tuning does not overwrite historical meaning.",
+        "growth_baseline_unavailable": "No comparable growth baseline yet",
+        "growth_baseline_interval_mismatch": "Growth measured over a different interval",
+        "growth_baseline_estimated": "Growth is estimated",
         "data_quality": "Data quality",
         "data_quality_body": "Collection failures, missing releases, incomplete activity metrics, and missing licenses are shown in rankings or repository detail pages.",
         "runs_title": "Collection Runs",
@@ -205,6 +202,9 @@ TRANSLATIONS = {
         "overall_score": "综合分数",
         "objectivity": "客观性",
         "objectivity_body": "每个分项保留原始指标、归一化得分、告警和估算字段。评分版本写入榜单，后续调参不会覆盖历史口径。",
+        "growth_baseline_unavailable": "尚无可比的增长基线",
+        "growth_baseline_interval_mismatch": "增长基线间隔不足或超过 7 天",
+        "growth_baseline_estimated": "增长数据为估算值",
         "data_quality": "数据质量",
         "data_quality_body": "采集失败、缺失 release、活动指标不完整、许可证缺失等情况都会在项目详情或榜单中显示。",
         "runs_title": "采集运行",
@@ -310,19 +310,25 @@ def home(
     settings = get_settings()
     week = latest_week(db, settings.score_version)
     context = base_context(request, db, "home")
-    if week is None:
-        context.update({"items": [], "selected_week": None, "languages": [], "ranking_items_json": "[]"})
-        return templates.TemplateResponse(request, "index.html", context)
-    items, snapshots = ranking_items_for_week(db, week, settings.score_version, language=language, limit=10)
-    languages = available_languages(db, week, settings.score_version)
+    archive = get_archive(request)
+    context["infra"] = archive.infra_report()
+    latest = archive.edition(max(archive.editions)) if archive.editions else None
+    if latest and (week is None or latest["week_start"] >= week.isoformat()):
+        week = date.fromisoformat(latest["week_start"])
+        top_items = latest["items"]
+        context.update({"edition": latest["date"], "edition_kind": latest["kind"]})
+    elif week:
+        top_items, _ = ranking_items_for_week(db, week, settings.score_version)
+    else:
+        top_items = []
+    languages = sorted({i["repository"]["primary_language"] for i in top_items if i["repository"]["primary_language"]})
+    items = [i for i in top_items if not language or i["repository"]["primary_language"] == language]
     context.update(
         {
             "items": items,
-            "snapshots": snapshots,
             "selected_week": week,
             "selected_language": language,
             "languages": languages,
-            "ranking_items_json": dumps(items),
             "score_version": settings.score_version,
         }
     )
@@ -331,19 +337,52 @@ def home(
 
 @router.get("/weeks", response_class=HTMLResponse)
 @router.get("/zh/weeks", response_class=HTMLResponse)
+@router.get("/weeks/{day}", response_class=HTMLResponse)
+@router.get("/zh/weeks/{day}", response_class=HTMLResponse)
 def weeks(
     request: Request,
+    day: date | None = None,
     week_start: date | None = None,
     db: Session = Depends(get_db),
+    archive: EditionArchive = Depends(get_archive),
 ) -> HTMLResponse:
-    settings = get_settings()
-    week = week_start or latest_week(db, settings.score_version)
     context = base_context(request, db, "weeks")
-    items: list[dict] = []
-    if week is not None:
-        items, _ = ranking_items_for_week(db, week, settings.score_version, limit=10)
-    context.update({"items": items, "selected_week": week, "ranking_items_json": dumps(items)})
+    # The legacy SQL-only CLI and its week_start query URLs remain usable.
+    sql_weeks = {w.isoformat() for w in context["weeks"]} - archive.weeks.keys()
+    dates = sorted(archive.editions.keys() | sql_weeks, reverse=True)
+    chosen = day or week_start
+    key = chosen.isoformat() if chosen else (dates[0] if dates else None)
+    payload = archive.edition(key) if key else None
+    if key and payload is None and key in sql_weeks:
+        rows, _ = ranking_items_for_week(db, date.fromisoformat(key), context["score_version"])
+        payload = {"items": rows, "week_start": key, "kind": "weekly"}
+    if chosen and payload is None:
+        raise api_error(404, "edition_not_found", "No ranking edition for this date.")
+    rows = payload["items"] if payload else []
+    context.update({
+        "items": rows, "edition": key, "editions": dates,
+        "edition_kind": payload["kind"] if payload else None,
+        "selected_week": date.fromisoformat(payload["week_start"]) if payload else None,
+    })
     return templates.TemplateResponse(request, "weeks.html", context)
+
+
+@router.get("/infra", response_class=HTMLResponse)
+@router.get("/zh/infra", response_class=HTMLResponse)
+@router.get("/infra/{day}", response_class=HTMLResponse)
+@router.get("/zh/infra/{day}", response_class=HTMLResponse)
+def infra_page(
+    request: Request,
+    day: date | None = None,
+    db: Session = Depends(get_db),
+    archive: EditionArchive = Depends(get_archive),
+) -> HTMLResponse:
+    report = archive.infra_report(day.isoformat() if day else None)
+    if day and report is None:
+        raise api_error(404, "infra_not_found", "No AI Infra edition for this date.")
+    context = base_context(request, db, "infra")
+    context.update({"infra": report, "infra_dates": sorted(archive.infra, reverse=True)})
+    return templates.TemplateResponse(request, "infra.html", context)
 
 
 @router.get("/repos/{owner}/{repo}", response_class=HTMLResponse)
@@ -356,9 +395,16 @@ def repo_detail(request: Request, owner: str, repo: str, db: Session = Depends(g
         .one_or_none()
     )
     context = base_context(request, db, "repos")
-    if repository is None:
-        context.update({"repository": None})
-        return templates.TemplateResponse(request, "repo_detail.html", context, status_code=404)
+    if repository is None or not repository.rankings:
+        # A project may have left the rolling week, or changed its GitHub name.
+        # Its dated edition still owns the metadata shown to that edition's reader.
+        archived = archived_repo_context(get_archive(request), owner, repo)
+        if archived:
+            context.update(archived)
+            return templates.TemplateResponse(request, "repo_detail.html", context)
+        if repository is None:
+            context.update({"repository": None})
+            return templates.TemplateResponse(request, "repo_detail.html", context, status_code=404)
 
     snapshots = (
         db.query(RepoSnapshot)
@@ -388,10 +434,35 @@ def repo_detail(request: Request, owner: str, repo: str, db: Session = Depends(g
             "latest_snapshot": latest_snapshot,
             "latest_ranking": latest_ranking,
             "score_breakdown": score_breakdown,
-            "chart_data_json": dumps(chart_data),
+            "chart_data": chart_data,
         }
     )
     return templates.TemplateResponse(request, "repo_detail.html", context)
+
+
+def archived_repo_context(archive: EditionArchive, owner: str, name: str) -> dict | None:
+    entries = {}
+    for day in sorted(archive.editions):
+        edition = archive.edition(day)
+        for item in edition["items"]:
+            if item["repository"]["full_name"].casefold() == f"{owner}/{name}".casefold():
+                entries[edition["week_start"]] = item
+                break
+    if not entries:
+        return None
+    latest = next(reversed(entries.values()))
+    snap = latest.get("snapshot") or {}
+    chart = {"stars": [], "stars_delta": [], "hot_score": []}
+    for week, item in list(entries.items())[-12:]:
+        values = item.get("snapshot") or {}
+        for key, value in (("stars", values.get("stars")), ("stars_delta", values.get("stars_delta_7d")), ("hot_score", item["hot_score"])):
+            if value is not None:
+                chart[key].append({"week_start": week, "value": value})
+    return {
+        "repository": latest["repository"], "topics": latest["repository"].get("topics", []),
+        "latest_snapshot": {**snap, "commit_count_7d": snap.get("commits_7d"), "pr_merged_7d": snap.get("prs_merged_7d")} if snap else None,
+        "latest_ranking": latest, "score_breakdown": latest["score_breakdown"], "chart_data": chart,
+    }
 
 
 @router.get("/compare", response_class=HTMLResponse)
@@ -403,32 +474,18 @@ def compare(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     context = base_context(request, db, "compare")
-    selected_names = [item.strip() for item in (repos or "").split(",") if item.strip()]
-    if not selected_names:
-        selected_names = default_compare_repos(db)
-    items = []
-    for full_name in selected_names[:5]:
-        if "/" not in full_name:
-            continue
-        owner, name = full_name.split("/", 1)
-        repository = (
-            db.query(Repository)
-            .filter(Repository.owner == owner)
-            .filter(Repository.name == name)
-            .one_or_none()
-        )
-        if repository is None:
-            continue
-        points = compare_points(db, repository.id, metric)
-        items.append({"full_name": repository.full_name, "language": repository.primary_language, "points": points})
-    context.update(
-        {
-            "selected_repos": ",".join(selected_names),
-            "metric": metric,
-            "compare_items": items,
-            "compare_json": dumps(items),
-        }
-    )
+    catalog = comparison_catalog(db)
+    if metric not in COMPARE_METRICS:
+        raise api_error(400, "invalid_metric", "Unsupported comparison metric.")
+    names = [name.strip() for name in (repos or "").split(",") if name.strip()] or default_compare_repos(db)
+    items = [
+        {"full_name": name, "language": catalog[name]["language"], "points": catalog[name]["metrics"][metric]}
+        for name in dict.fromkeys(names[:5]) if name in catalog
+    ]
+    context.update({
+        "selected_repos": ",".join(names[:5]), "metric": metric, "compare_items": items,
+        "compare_catalog": catalog,
+    })
     return templates.TemplateResponse(request, "compare.html", context)
 
 
@@ -471,7 +528,6 @@ def base_context(request: Request, db: Session, active_page: str) -> dict:
         .all()
     )
     latest_run = db.query(CollectionRun).order_by(CollectionRun.started_at.desc()).first()
-    component_labels = {key: localized_label(lang, key) for key in COMPONENT_KEYS}
     return {
         "request": request,
         "app_name": settings.app_name,
@@ -487,8 +543,6 @@ def base_context(request: Request, db: Session, active_page: str) -> dict:
         "component_label": component_label,
         "warning_label": warning_label,
         "status_label": run_status_label,
-        "component_labels_json": dumps(component_labels),
-        "ui_text_json": dumps({"noDescription": t("no_description"), "components": component_labels}),
     }
 
 
@@ -528,20 +582,6 @@ def ranking_items_for_week(
     return [ranking_item(item, snapshots_by_repo.get(item.repository_id)) for item in rankings], snapshots_by_repo
 
 
-def available_languages(db: Session, week_start: date, score_version: str) -> list[str]:
-    rows = (
-        db.query(Repository.primary_language)
-        .join(WeeklyRanking, WeeklyRanking.repository_id == Repository.id)
-        .filter(WeeklyRanking.week_start == week_start)
-        .filter(WeeklyRanking.score_version == score_version)
-        .filter(Repository.primary_language.is_not(None))
-        .group_by(Repository.primary_language)
-        .order_by(Repository.primary_language.asc())
-        .all()
-    )
-    return [row[0] for row in rows if row[0]]
-
-
 def default_compare_repos(db: Session) -> list[str]:
     settings = get_settings()
     week = latest_week(db, settings.score_version)
@@ -559,23 +599,26 @@ def default_compare_repos(db: Session) -> list[str]:
     return [item.repository.full_name for item in rankings]
 
 
-def compare_points(db: Session, repository_id: int, metric: str) -> list[dict]:
-    settings = get_settings()
-    if metric.endswith("_score") or metric == "hot_score":
-        rows = (
-            db.query(WeeklyRanking)
-            .filter(WeeklyRanking.repository_id == repository_id)
-            .filter(WeeklyRanking.score_version == settings.score_version)
-            .order_by(WeeklyRanking.week_start.asc())
-            .limit(12)
-            .all()
-        )
-        return [{"week_start": row.week_start.isoformat(), "value": getattr(row, metric)} for row in rows]
+COMPARE_METRICS = ("hot_score", "stars_delta_7d", "activity_score", "community_score")
+
+
+def comparison_catalog(db: Session) -> dict:
+    rank = WeeklyRanking
     rows = (
-        db.query(RepoSnapshot)
-        .filter(RepoSnapshot.repository_id == repository_id)
-        .order_by(RepoSnapshot.week_start.asc())
-        .limit(12)
-        .all()
+        db.query(Repository.full_name, Repository.primary_language.label("language"), rank.week_start,
+                 rank.hot_score, RepoSnapshot.stars_delta_7d, rank.activity_score, rank.community_score,
+                 func.row_number().over(partition_by=rank.repository_id, order_by=rank.week_start.desc()).label("n"))
+        .select_from(rank)
+        .join(Repository, Repository.id == rank.repository_id)
+        .outerjoin(RepoSnapshot, (RepoSnapshot.repository_id == rank.repository_id) & (RepoSnapshot.week_start == rank.week_start))
+        .filter(rank.score_version == get_settings().score_version)
+        .subquery()
     )
-    return [{"week_start": row.week_start.isoformat(), "value": getattr(row, metric, 0)} for row in rows]
+    catalog = {}
+    for row in db.query(rows).filter(rows.c.n <= 12).order_by(rows.c.full_name, rows.c.week_start):
+        series = catalog.setdefault(row.full_name, {"language": row.language, "metrics": {key: [] for key in COMPARE_METRICS}})
+        for metric in COMPARE_METRICS:
+            value = getattr(row, metric)
+            if value is not None:
+                series["metrics"][metric].append({"week_start": row.week_start.isoformat(), "value": value})
+    return catalog

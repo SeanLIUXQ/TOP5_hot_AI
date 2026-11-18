@@ -78,6 +78,20 @@ class RepoSnapshot(Base):
     collection_run: Mapped["CollectionRun | None"] = relationship(back_populates="snapshots")
 
 
+class RepoDailyCounter(Base):
+    """Latest successful observation for this repository on this UTC day."""
+
+    __tablename__ = "repo_daily_counters"
+
+    repository_id: Mapped[int] = mapped_column(ForeignKey("repositories.id"), primary_key=True)
+    observed_on: Mapped[date] = mapped_column(Date, primary_key=True, index=True)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    stars: Mapped[int] = mapped_column(Integer)
+    forks: Mapped[int] = mapped_column(Integer)
+    watchers: Mapped[int] = mapped_column(Integer)
+    provenance: Mapped[str] = mapped_column(String(32))
+
+
 class WeeklyRanking(Base):
     __tablename__ = "weekly_rankings"
     __table_args__ = (

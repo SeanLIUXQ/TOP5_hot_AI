@@ -1,40 +1,43 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% set metrics = ['hot_score', 'stars_delta_7d', 'activity_score', 'community_score'] %}
+{% set catalog = compare_catalog|default({}, true) %}
+{% set initial = compare_items|default([], true) %}
 
-{% block title %}{{ t('compare_title') }} - {{ app_name }}{% endblock %}
-{% block page_title %}{{ t('compare_title') }}{% endblock %}
+{% block title %}{{ t('compare_title') }} · TOP5 Hot AI{% endblock %}
+{% block page_title %}{{ t('compare_heading') }}{% endblock %}
+{% block intro %}<p>{{ tr('Compare up to five projects across their recorded weeks. Choose a metric to read the trend and its underlying values.', '选择最多五个项目，对比它们在已记录各周的得分或增长，并查看对应数值。') }}</p>{% endblock %}
 
 {% block content %}
-  <section class="panel">
-    <div class="panel-header">
-      <div>
-        <h2>{{ t('compare_heading') }}</h2>
-        <p>{{ t('compare_intro') }}</p>
+  <section aria-label="{{ t('compare_heading') }}" data-comparison>
+    <form class="compare-form" method="get" action="{{ page_href('/compare') }}">
+      <div class="names-field"><label for="repos">{{ tr('Repositories', '仓库') }}</label>
+        <input type="text" id="repos" name="repos" list="repo-options" value="{{ selected_repos }}" placeholder="owner/repo" aria-describedby="repos-hint" spellcheck="false" autocomplete="off">
+        <datalist id="repo-options">{% for full_name in catalog|sort %}<option value="{{ full_name }}"></option>{% endfor %}</datalist>
+        <small id="repos-hint">{{ tr('Separate owner/repository names with commas.', '使用英文逗号分隔多个 owner/repository 名称。') }}</small>
       </div>
-      <form class="compare-form" method="get" action="{{ page_href('/compare') }}">
-        <input name="repos" value="{{ selected_repos }}" placeholder="{{ t('compare_placeholder') }}">
-        <select name="metric">
-          {% for value in ["hot_score", "stars_delta_7d", "activity_score", "community_score"] %}
-            <option value="{{ value }}" {{ 'selected' if value == metric else '' }}>{{ t(value) }}</option>
-          {% endfor %}
-        </select>
-        <button class="button" type="submit">{{ t('compare_button') }}</button>
-      </form>
-    </div>
-    {% if compare_items %}
-      <canvas id="compare-chart" width="1200" height="360"></canvas>
-      <div class="compare-list">
-        {% for item in compare_items %}
-          <div>
-            <strong>{{ item.full_name }}</strong>
-            <span>{{ item.language or '-' }}</span>
-          </div>
-        {% endfor %}
+      <div><label for="metric">{{ tr('Metric', '对比指标') }}</label>
+        <select name="metric" id="metric">{% for value in metrics %}<option value="{{ value }}"{% if value == metric %} selected{% endif %}>{{ t(value) }}</option>{% endfor %}</select>
       </div>
-      <script>window.COMPARE_DATA = {{ compare_json | safe }};</script>
-    {% else %}
-      <div class="empty-state compact">
-        <h2>{{ t('empty_compare_title') }}</h2>
-      </div>
-    {% endif %}
+      <button class="button" type="submit">{{ t('compare_button') }}</button>
+    </form>
+    <p class="compare-feedback" role="status" data-compare-feedback></p>
+    <section class="plot-section" aria-labelledby="metric-heading" data-compare-results{% if not initial %} hidden{% endif %}>
+      <div class="section-head"><h2 id="metric-heading">{{ t(metric) }}</h2></div>
+      <ul class="series-key" data-compare-key>
+        {% for item in initial %}<li><i class="swatch series-{{ loop.index0 }}" aria-hidden="true"></i>{{ item.full_name }}</li>{% endfor %}
+      </ul>
+      <canvas class="line-chart" id="compare-chart" aria-hidden="true" hidden></canvas>
+      <details class="values-table">
+        <summary>{{ tr('Values by week', '查看每周数值') }}</summary>
+        <table class="data-table"><caption class="sr-only">{{ tr('Recorded comparison values', '已记录的对比数值') }}</caption>
+          <thead><tr><th scope="col">{{ t('repository') }}</th><th scope="col">{{ t('week') }}</th><th scope="col" data-metric-label>{{ t(metric) }}</th></tr></thead>
+          <tbody data-compare-values>
+            {% for entry in initial %}{% for point in entry.points %}<tr><th scope="row">{{ entry.full_name }}</th><td>{{ point.week_start }}</td><td>{{ point.value if point.value is number else '—' }}</td></tr>{% endfor %}{% endfor %}
+          </tbody>
+        </table>
+      </details>
+    </section>
+    <div class="empty-state compact" data-compare-empty{% if initial %} hidden{% endif %}><h2>{{ tr('No comparison data', '暂无对比数据') }}</h2><p>{{ tr('Choose a repository and metric with recorded values.', '请选择有记录的仓库和指标。') }}</p></div>
+    <script type="application/json" id="comparison-data">{{ {'catalog': catalog, 'initial': initial, 'metric': metric, 'repos': selected_repos, 'maxHint': tr('Choose up to five repositories.', '最多可选择五个仓库。'), 'missing': tr('No recorded values', '暂无记录'), 'shown': tr('Series shown', '已显示的序列数')}|tojson }}</script>
   </section>
 {% endblock %}

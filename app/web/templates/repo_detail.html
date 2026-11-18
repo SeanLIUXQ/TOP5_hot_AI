@@ -1,81 +1,59 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% set series = chart_data|default({}, true) %}
 
-{% block title %}{% if repository %}{{ repository.full_name }}{% else %}{{ t('repo_not_found') }}{% endif %} - {{ app_name }}{% endblock %}
-{% block page_title %}{% if repository %}{{ repository.full_name }}{% else %}{{ t('repo_not_found') }}{% endif %}{% endblock %}
+{% block title %}{{ repository.full_name if repository else t('repo_not_found') }} · TOP5 Hot AI{% endblock %}
+{% block dateline %}{% if latest_snapshot and latest_snapshot.week_start %}<p class="dateline">{{ tr('Snapshot · Week of', '数据快照 · 周起始日') }} <time datetime="{{ latest_snapshot.week_start }}">{{ latest_snapshot.week_start }}</time></p>{% endif %}{% endblock %}
+{% block page_title %}{{ project_name(repository.full_name) if repository else t('repo_not_found') }}{% endblock %}
+{% block intro %}{% if repository %}<p>{{ repository.description or t('no_description') }}</p>{% endif %}{% endblock %}
 
 {% block content %}
   {% if not repository %}
-    <section class="empty-state">
-      <h2>{{ t('repo_missing_title') }}</h2>
-      <p>{{ t('repo_not_found_body') }}</p>
-    </section>
+    <section class="empty-state"><h2>{{ t('repo_missing_title') }}</h2><p>{{ t('repo_not_found_body') }}</p><a class="text-link" href="{{ page_href('/weeks') }}">{{ tr('Browse the archive', '浏览往期榜单') }} <span aria-hidden="true">→</span></a></section>
   {% else %}
-    <section class="repo-hero panel">
-      <div>
-        <div class="detail-kicker">{{ repository.primary_language or t('unknown_language') }}</div>
-        <h2>{{ repository.full_name }}</h2>
-        <p>{{ repository.description or t('no_description') }}</p>
-        <div class="topic-row">
-          {% for topic in topics %}
-            <span>{{ topic }}</span>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="repo-score">
-        <strong>{{ latest_ranking.hot_score if latest_ranking else '-' }}</strong>
-        <span>{{ t('hot_score') }}</span>
-        <a class="button ghost" href="{{ repository.html_url }}" target="_blank" rel="noreferrer">GitHub</a>
-      </div>
-    </section>
-
-    <section class="repo-grid">
-      <div class="panel">
-        <div class="panel-header">
-          <h2>{{ t('score_breakdown') }}</h2>
-        </div>
-        {% if score_breakdown.components %}
-          <div class="metric-stack">
-            {% for label, value in score_breakdown.components.items() %}
-              <div class="component-row">
-                <span>{{ component_label(label) }}</span>
-                <strong>{{ value }}</strong>
-                <div class="bar"><i style="width: {{ value }}%"></i></div>
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
-      </div>
-      <div class="panel">
-        <div class="panel-header">
-          <h2>{{ t('latest_snapshot') }}</h2>
-        </div>
+    <div class="repo-byline">
+      {% if latest_ranking %}<span><strong>{{ latest_ranking.hot_score }}</strong> {{ t('hot_score') }}</span>{% endif %}
+      {% if repository.primary_language %}<span>{{ repository.primary_language }}</span>{% endif %}
+      {% if repository.license_spdx %}<span>{{ repository.license_spdx }}</span>{% endif %}
+      <span>{{ external_link(repository.html_url, tr('View on GitHub', '在 GitHub 查看')) }}</span>
+    </div>
+    {% if topics %}<ul class="topics" aria-label="{{ tr('GitHub topics', 'GitHub 主题') }}">{% for topic in topics %}<li>{{ topic }}</li>{% endfor %}</ul>{% endif %}
+    <div class="repo-grid">
+      <section class="repo-section"><h2>{{ t('score_breakdown') }}</h2>
+        {% if score_breakdown and score_breakdown.components %}
+          <dl class="components">{% for label, value in score_breakdown.components.items() %}
+            <div><dt>{{ component_label(label) }}</dt><dd>{{ value }}{% if value is number %}<meter min="0" max="100" value="{{ value }}" aria-hidden="true"></meter>{% endif %}</dd></div>
+          {% endfor %}</dl>
+        {% else %}<p>{{ tr('No component scores recorded.', '暂无分项得分记录。') }}</p>{% endif %}
+      </section>
+      <section class="repo-section"><h2>{{ t('latest_snapshot') }}</h2>
         {% if latest_snapshot %}
           <dl class="snapshot-list">
-            <div><dt>{{ t('stars') }}</dt><dd>{{ latest_snapshot.stars|compact_number }} <span>+{{ latest_snapshot.stars_delta_7d|compact_number }}</span></dd></div>
-            <div><dt>{{ t('forks') }}</dt><dd>{{ latest_snapshot.forks|compact_number }} <span>+{{ latest_snapshot.forks_delta_7d|compact_number }}</span></dd></div>
-            <div><dt>{{ t('commits_title') }}</dt><dd>{{ latest_snapshot.commit_count_7d or 0 }}</dd></div>
-            <div><dt>{{ t('pr_merged') }}</dt><dd>{{ latest_snapshot.pr_merged_7d or 0 }}</dd></div>
-            <div><dt>{{ t('data') }}</dt><dd>{{ latest_snapshot.data_quality_level }}</dd></div>
+            <div><dt>{{ t('stars') }}</dt><dd>{{ latest_snapshot.stars|compact_number }} <small>({{ signed(latest_snapshot.stars_delta_7d) }} / 7{{ t('day_short') }})</small></dd></div>
+            <div><dt>{{ t('forks') }}</dt><dd>{{ latest_snapshot.forks|compact_number }} <small>({{ signed(latest_snapshot.forks_delta_7d) }} / 7{{ t('day_short') }})</small></dd></div>
+            <div><dt>{{ tr('Commits · 7d', '提交 · 7 天') }}</dt><dd>{{ latest_snapshot.commit_count_7d if latest_snapshot.commit_count_7d is number else '—' }}</dd></div>
+            <div><dt>{{ tr('PRs merged · 7d', '合并 PR · 7 天') }}</dt><dd>{{ latest_snapshot.pr_merged_7d if latest_snapshot.pr_merged_7d is number else '—' }}</dd></div>
+            <div><dt>{{ t('data_quality') }}</dt><dd>{{ latest_snapshot.data_quality_level or '—' }}</dd></div>
           </dl>
-        {% endif %}
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-header">
-        <h2>{{ t('trend_title') }}</h2>
-      </div>
+        {% else %}<p>{{ tr('No snapshot available.', '暂无数据快照。') }}</p>{% endif %}
+      </section>
+    </div>
+    <section class="plot-section"><div class="section-head"><h2>{{ t('trend_title') }}</h2></div>
       <div class="chart-grid">
-        <div>
-          <h3>{{ t('hot_score_title') }}</h3>
-          <canvas class="trend-chart" data-series="hot_score" width="640" height="220"></canvas>
-        </div>
-        <div>
-          <h3>{{ t('star_delta') }}</h3>
-          <canvas class="trend-chart" data-series="stars_delta" width="640" height="220"></canvas>
-        </div>
+        {% for key, title in [('hot_score', t('hot_score_title')), ('stars_delta', t('stars_delta_7d'))] %}
+          {% set points = series.get(key, []) %}
+          <section><h3>{{ title }}</h3>
+            {% if points %}
+              <canvas class="trend-chart line-chart" data-series="{{ key }}" aria-hidden="true" hidden></canvas>
+              <details class="values-table"><summary>{{ tr('Values by week', '查看每周数值') }}</summary>
+                <table class="data-table"><thead><tr><th scope="col">{{ t('week') }}</th><th scope="col">{{ title }}</th></tr></thead>
+                  <tbody>{% for point in points %}<tr><th scope="row">{{ point.week_start }}</th><td>{{ point.value if point.value is number else '—' }}</td></tr>{% endfor %}</tbody>
+                </table>
+              </details>
+            {% else %}<p>{{ tr('No values recorded.', '暂无记录。') }}</p>{% endif %}
+          </section>
+        {% endfor %}
       </div>
     </section>
-    <script>window.REPO_CHART_DATA = {{ chart_data_json | safe }};</script>
+    <script id="repo-chart-data" type="application/json">{{ series|tojson }}</script>
   {% endif %}
 {% endblock %}

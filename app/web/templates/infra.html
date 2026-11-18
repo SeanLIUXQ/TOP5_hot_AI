@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% set dates = infra_dates|default([], true) %}
+{% set current = infra.date if infra else none %}
+{% set projects = infra['items'] if infra else [] %}
+{% set coverage = (infra.get('coverage') or {}) if infra else {} %}
+{% set created_since = coverage.get('created_since') %}
+{% set watchlist = projects|selectattr('is_watchlist')|list %}
+{% set groups = {} %}
+{% for key in ['offload', 'runtime', 'quantization', 'acceleration', 'serving'] %}
+  {% set group = projects|selectattr('category', 'equalto', key)|list %}
+  {% if group %}{% set _ = groups.update({key: group}) %}{% endif %}
+{% endfor %}
+
+{% block title %}AI Infra{% if current %} · {{ current }}{% endif %} · TOP5 Hot AI{% endblock %}
+{% block page_title %}AI Infra{% endblock %}
+{% block intro %}<p>{{ tr('Open-source projects for running and serving AI models. Follow the releases, runtimes and hardware work behind inference.', '关注模型推理背后的开源项目，查阅运行时、硬件加速与推理服务的版本和开发动态。') }}</p>{% endblock %}
+
+{% block content %}
+  {{ section_nav(dates, current, '/infra') }}
+  {% if infra %}
+    <div class="infra-byline">
+      <span id="infra-count" role="status" aria-live="polite" aria-atomic="true"><span data-visible-total hidden><strong data-infra-count></strong> / </span><strong>{{ projects|length }}</strong> {{ tr('projects', '个项目') }}</span>
+      {% if infra.generated_at %}<span>{{ tr('Generated', '生成时间') }} <time datetime="{{ infra.generated_at }}">{{ (infra.generated_at|string)[:16]|replace('T', ' ') }}{% if (infra.generated_at|string).endswith(('Z', '+00:00')) %} UTC{% endif %}</time></span>{% endif %}
+      <a class="export-link" href="/api/v1/infra/{{ infra.date }}"><span aria-hidden="true">↓</span> {{ tr('Edition JSON', '本期 JSON') }}</a>
+    </div>
+    {% if infra.warnings %}<details class="collection-notes"><summary>{{ tr('Collection notes', '采集说明') }} <span class="item-count">{{ infra.warnings|length }}</span></summary><ul>{% for warning in infra.warnings %}<li>{{ warning_label(warning) }}</li>{% endfor %}</ul></details>{% endif %}
+  {% endif %}
+  {% if groups %}
+    <form class="infra-filter" role="search" aria-label="{{ tr('Filter AI Infra projects', '筛选 AI Infra 项目') }}" data-infra-filter hidden>
+      <div class="search-field"><label for="project-search">{{ tr('Search projects', '搜索项目') }}</label>
+        <input type="search" id="project-search" name="q" placeholder="{{ tr('Name, description, category…', '名称、简介、分类…') }}" aria-controls="infra-projects" autocomplete="off">
+      </div>
+      <label class="check-field" for="watchlist"><input type="checkbox" name="watchlist" id="watchlist" value="1" aria-controls="infra-projects"> {{ tr('Watchlist only', '仅看关注名单') }} ({{ watchlist|length }})</label>
+      {% if created_since %}
+        <label class="check-field" for="new-projects" title="{{ created_since }} – {{ current }}"><input type="checkbox" name="recent" id="new-projects" value="1" aria-controls="infra-projects" aria-describedby="new-projects-window"> {{ tr('New this month', '近30天新建') }}</label>
+        <span class="sr-only" id="new-projects-window">{{ tr('Created between these dates, inclusive', '创建日期范围，含起止日') }} {{ created_since }} – {{ current }}</span>
+      {% endif %}
+      <button class="clear-filters" type="button" data-clear-infra hidden>{{ tr('Clear filters', '清除筛选') }}</button>
+    </form>
+    {% if watchlist %}
+      <noscript><details class="values-table"><summary>{{ tr('Watchlist', '关注名单') }} ({{ watchlist|length }})</summary><ul>
+        {% for item in watchlist %}<li><a href="#project-{{ item.full_name }}">{{ item.full_name }}</a></li>{% endfor %}
+      </ul></details></noscript>
+    {% endif %}
+    <p class="inline-empty" data-infra-empty hidden>{{ tr('No projects match these filters.', '没有项目符合当前筛选条件。') }}</p>
+    <div class="infra-layout">
+      <nav class="category-nav" aria-labelledby="category-heading">
+        <h2 id="category-heading">{{ tr('Categories', '项目分类') }}</h2>
+        <ul>{% for key, group in groups.items() %}<li data-category-link="{{ key }}"><a href="#category-{{ key }}">{{ category_name(key) }} <span class="item-count">{{ group|length }}</span></a></li>{% endfor %}</ul>
+      </nav>
+      <div class="infra-groups" id="infra-projects">
+        {% for key, group in groups.items() %}
+          <section class="infra-group" data-category="{{ key }}" aria-labelledby="category-{{ key }}">
+            <h2 id="category-{{ key }}" tabindex="-1">{{ category_name(key) }}</h2>
+            {% for item in group %}
+              <article class="infra-project" id="project-{{ item.full_name }}" data-watchlisted="{{ 1 if item.is_watchlist else 0 }}"{% if created_since and item.created_at and created_since <= (item.created_at|string)[:10] <= current %} data-recent{% endif %}>
+                <div>
+                  <h3>{{ external_link(item.html_url, project_name(item.full_name)) }}</h3>
+                  <p>{{ item.description or t('no_description') }}</p>
+                  <ul class="project-facts" aria-label="{{ tr('Repository facts', '仓库信息') }}">
+                    {% if item.language %}<li>{{ item.language }}</li>{% endif %}
+                    {% if item.license %}<li>{{ item.license }}</li>{% endif %}
+                    {% if item.stars is number %}<li title="{{ item.stars }}">{{ item.stars|compact_number }} {{ tr('stars', '星标') }}</li>{% endif %}
+                    {% if item.is_watchlist %}<li class="watch-label">{{ tr('Watchlist', '关注名单') }}</li>{% endif %}
+                  </ul>
+                </div>
+                <dl class="infra-dates">
+                  <div><dt>{{ tr('Release', '发布版本') }}</dt>
+                    <dd>{% if item.release %}{{ external_link(item.release.url, item.release.tag) }}{% if item.release.published_at %} <time datetime="{{ item.release.published_at }}">{{ (item.release.published_at|string)[:10] }}</time>{% endif %}{% elif item.release_checked|default(true) %}{{ tr('None recorded', '无发布记录') }}{% else %}{{ tr('Not checked', '未查询') }}{% endif %}</dd></div>
+                  {% if item.pushed_at %}<div><dt>{{ tr('Pushed', '推送') }}</dt><dd><time datetime="{{ item.pushed_at }}">{{ (item.pushed_at|string)[:10] }}</time></dd></div>{% endif %}
+                  {% if item.created_at %}<div><dt>{{ tr('Created', '创建') }}</dt><dd><time datetime="{{ item.created_at }}">{{ (item.created_at|string)[:10] }}</time></dd></div>{% endif %}
+                </dl>
+              </article>
+            {% endfor %}
+          </section>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <section class="empty-state">
+      <h2>{{ tr('No projects in this edition' if infra else 'No infrastructure edition available', '本期没有项目' if infra else '暂无基础设施简报') }}</h2>
+      <p>{{ tr('This collection returned no project entries.' if infra else 'Published AI Infra editions will appear here.', '此次采集未返回项目记录。' if infra else 'AI Infra 简报发布后将在这里显示。') }}</p>
+      <a class="text-link" href="{{ page_href('/') }}">{{ tr('Back to the daily edition', '返回日报') }} <span aria-hidden="true">→</span></a>
+    </section>
+  {% endif %}
+{% endblock %}
